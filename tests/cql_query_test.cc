@@ -4077,3 +4077,16 @@ SEASTAR_TEST_CASE(test_alter_type_on_compact_storage_with_no_regular_columns_doe
         cquery_nofail(e, "alter type my_udf add test_int int;");
     });
 }
+
+SEASTAR_TEST_CASE(test_arithmetic_operator) {
+    return do_with_cql_env_thread([] (cql_test_env& e) {
+        cquery_nofail(e, "create table t (p bigint primary key, s text)");
+        cquery_nofail(e, "insert into t (p, s) values (1, 'abc')");
+
+        auto msg = e.execute_cql("select p+2 from t;").get0();
+        assert_that(msg).is_rows().with_row({
+            { long_type->decompose(3L) }
+        });
+
+    });
+}
