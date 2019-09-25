@@ -92,6 +92,7 @@ options {
 #include "cql3/functions/function_name.hh"
 #include "cql3/functions/function_call.hh"
 #include <seastar/core/sstring.hh>
+#include "cql3/selection/with_term_selector.hh"
 #include "CqlLexer.hpp"
 
 #include <algorithm>

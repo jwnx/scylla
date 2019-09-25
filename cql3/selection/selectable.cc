@@ -29,6 +29,8 @@
 #include "cql3/functions/aggregate_fcts.hh"
 #include "abstract_function_selector.hh"
 #include "writetime_or_ttl_selector.hh"
+#include "cql3/term.hh"
+#include "cql3/selection/with_term_selector.hh"
 
 namespace cql3 {
 
@@ -66,6 +68,26 @@ selectable::writetime_or_ttl::raw::prepare(schema_ptr s) {
 
 bool
 selectable::writetime_or_ttl::raw::processes_selection() const {
+    return true;
+}
+
+shared_ptr<selector::factory>
+selectable::with_term::new_selector_factory(database& db, schema_ptr s, std::vector<const column_definition*>& defs) {
+    return abstract_function_selector::new_factory(nullptr, nullptr);
+}
+
+sstring
+selectable::with_term::to_string() const {
+    return format("{}", _raw_term->to_string());
+}
+
+shared_ptr<selectable>
+selectable::with_term::raw::prepare(schema_ptr s) {
+        return ::make_shared<selectable::with_term>(_raw_term);
+}
+
+bool
+selectable::with_term::raw::processes_selection() const {
     return true;
 }
 
