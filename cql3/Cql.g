@@ -421,22 +421,61 @@ selector returns [shared_ptr<raw_selector> s]
     ;
 
 unaliasedSelector returns [shared_ptr<selectable::raw> s]
+    : a = selectionAddition { $s = a; }
+    ;
+
+selectionAddition returns [shared_ptr<selectable::raw> s]
+    :   l = selectionMultiplication { $s = l; }
+        ( '+' r=selectionMultiplication   { $s = selectable::with_function::raw::make_operation_function('+', $s, r); }
+        | '-' r=selectionMultiplication   { $s = selectable::with_function::raw::make_operation_function('-', $s, r); }
+        )*
+    ;
+
+selectionMultiplication returns [shared_ptr<selectable::raw> s]
+    :   l = selectionGroup  { $s = l; }
+        ( '*' r=selectionGroup  { $s = selectable::with_function::raw::make_operation_function('*', $s, r); }
+        )*
+    ;
+
+selectionGroup returns [shared_ptr<selectable::raw> s]
+    :   (selectionGroupWithField)=> f=selectionGroupWithField { $s = f; }
+        | g=selectionGroupWithField { $s = g; }
+    ;
+
+selectionGroupWithField returns [shared_ptr<selectable::raw> s]
     @init { shared_ptr<selectable::raw> tmp; }
-    :  ( c=cident                                  { tmp = c; }
-       | K_COUNT '(' countArgument ')'             { tmp = selectable::with_function::raw::make_count_rows_function(); }
-       | K_WRITETIME '(' c=cident ')'              { tmp = make_shared<selectable::writetime_or_ttl::raw>(c, true); }
-       | K_TTL       '(' c=cident ')'              { tmp = make_shared<selectable::writetime_or_ttl::raw>(c, false); }
-       | f=functionName args=selectionFunctionArgs { tmp = ::make_shared<selectable::with_function::raw>(std::move(f), std::move(args)); }
-       | K_CAST      '(' arg=unaliasedSelector K_AS t=native_type ')'  { tmp = ::make_shared<selectable::with_cast::raw>(std::move(arg), std::move(t)); }
-       )
-       ( '.' fi=cident { tmp = make_shared<selectable::with_field_selection::raw>(std::move(tmp), std::move(fi)); } )*
-    { $s = tmp; }
+    @after { $s = tmp; }
+    :  g=selectionGroupWithoutField { tmp = g; }
+       ( '.' fi=cident { tmp = make_shared<selectable::with_field_selection::raw>(std::move(tmp), std::move(fi)); } )* 
+    ;
+
+selectionGroupWithoutField returns [shared_ptr<selectable::raw> s]
+    @init { shared_ptr<selectable::raw> tmp; }
+    @after { $s = tmp; }
+    :  sn=simpleUnaliasedSelector                  { tmp = sn; }
+    ;
+
+simpleUnaliasedSelector returns [shared_ptr<selectable::raw> s]
+    :   c=sident                                   { $s = c; }
+        | l=selectionLiteral                       { $s = make_shared<selectable::with_term::raw>(l); }
+        | f=selectionFunction                      { $s = f; }
+    ;
+
+selectionLiteral returns [::shared_ptr<cql3::term::raw> value]
+    :   c=constant                                  { $value = c; }
+    ;
+
+selectionFunction returns [shared_ptr<selectable::raw> s]
+    : K_COUNT '(' countArgument ')'             { $s = selectable::with_function::raw::make_count_rows_function(); }
+    | K_WRITETIME '(' c=cident ')'              { $s = make_shared<selectable::writetime_or_ttl::raw>(c, true); }
+    | K_TTL       '(' c=cident ')'              { $s = make_shared<selectable::writetime_or_ttl::raw>(c, false); }
+    | f=functionName args=selectionFunctionArgs { $s = ::make_shared<selectable::with_function::raw>(std::move(f), std::move(args)); }
+    | K_CAST      '(' arg=unaliasedSelector K_AS t=native_type ')'  { $s = ::make_shared<selectable::with_cast::raw>(std::move(arg), std::move(t)); }
     ;
 
 selectionFunctionArgs returns [std::vector<shared_ptr<selectable::raw>> a]
-    : '(' ')'
-    | '(' s1=unaliasedSelector { a.push_back(std::move(s1)); }
-          ( ',' sn=unaliasedSelector { a.push_back(std::move(sn)); } )*
+    : '(' (s1=unaliasedSelector { a.push_back(std::move(s1)); }
+          ( ',' sn=unaliasedSelector { a.push_back(std::move(sn)); } )* )?
       ')'
     ;
 
@@ -446,6 +485,7 @@ countArgument
                     add_recognition_error("Only COUNT(1) is supported, got COUNT(" + i->getText() + ")");
                 } }
     ;
+
 
 whereClause returns [std::vector<cql3::relation_ptr> clause]
     : relation[$clause] (K_AND relation[$clause])*
@@ -1244,6 +1284,13 @@ ident returns [shared_ptr<cql3::column_identifier> id]
     | t=QUOTED_NAME        { $id = make_shared<cql3::column_identifier>(sstring{$t.text}, true); }
     | k=unreserved_keyword { $id = make_shared<cql3::column_identifier>(k, false); }
     ;
+
+sident returns [shared_ptr<selectable::raw> id]
+    : t=IDENT              { $id = cql3::selection::raw_identifier::for_unquoted(sstring{$t.text}); }
+    | t=QUOTED_NAME        { $id = cql3::selection::raw_identifier::for_quoted(sstring{$t.text}); }
+    | k=unreserved_keyword { $id = cql3::selection::raw_identifier::for_unquoted(k); }
+    ;
+
 
 // Keyspace & Column family names
 keyspaceName returns [sstring id]
