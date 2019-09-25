@@ -71,6 +71,34 @@ selectable::writetime_or_ttl::raw::processes_selection() const {
     return true;
 }
 
+shared_ptr<selectable>
+raw_identifier::prepare(schema_ptr s) {
+    auto raw = _quoted ? make_shared<cql3::column_identifier::raw>(_text, true)
+                       : make_shared<cql3::column_identifier::raw>(_text, false);
+
+    return raw->prepare(s);
+}
+
+shared_ptr<selectable::raw>
+raw_identifier::for_unquoted(sstring t) {
+    return ::make_shared<raw_identifier>(t, false);
+}
+
+shared_ptr<selectable::raw>
+raw_identifier::for_quoted(sstring t) {
+    return ::make_shared<raw_identifier>(t, true);
+}
+
+sstring
+raw_identifier::to_string() const {
+    return format("{}", _text);
+}
+
+bool
+raw_identifier::processes_selection() const {
+    return true;
+}
+
 shared_ptr<selector::factory>
 selectable::with_term::new_selector_factory(database& db, schema_ptr s, std::vector<const column_definition*>& defs) {
     return abstract_function_selector::new_factory(nullptr, nullptr);

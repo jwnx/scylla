@@ -93,6 +93,22 @@ public:
 
 std::ostream & operator<<(std::ostream &os, const selectable& s);
 
+class raw_identifier : public selectable::raw {
+    sstring _text;
+    bool _quoted;
+public:
+    raw_identifier(sstring text, bool quoted)
+        : _text(std::move(text)), _quoted(std::move(quoted)) {
+    }
+
+    virtual shared_ptr<selectable> prepare(schema_ptr s) override;
+    virtual bool processes_selection() const override;
+    static ::shared_ptr<selectable::raw> for_unquoted(sstring t);
+    static ::shared_ptr<selectable::raw> for_quoted(sstring t);
+
+    virtual sstring to_string() const;
+};
+
 class selectable::with_function : public selectable {
     functions::function_name _function_name;
     std::vector<shared_ptr<selectable>> _args;
