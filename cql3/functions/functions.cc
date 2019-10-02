@@ -60,6 +60,8 @@ functions::init() {
     declare(time_uuid_fcts::make_datetounixtimestamp_fct());
     declare(make_uuid_fct());
 
+    declare(operation_fcts::make_add_fct());
+
     for (auto&& type : cql3_type::values()) {
         // Note: because text and varchar ends up being synonymous, our automatic makeToBlobFunction doesn't work
         // for varchar, so we special case it below. We also skip blob for obvious reasons.

@@ -27,6 +27,7 @@
 #include "cql3/functions/functions.hh"
 #include "cql3/functions/castas_fcts.hh"
 #include "cql3/functions/aggregate_fcts.hh"
+#include "cql3/functions/operation_fcts.hh"
 #include "abstract_function_selector.hh"
 #include "writetime_or_ttl_selector.hh"
 #include "cql3/term.hh"
