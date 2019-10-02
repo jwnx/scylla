@@ -30,6 +30,7 @@
 #include "abstract_function_selector.hh"
 #include "writetime_or_ttl_selector.hh"
 #include "cql3/term.hh"
+#include "cql3/selection/term_selector.hh"
 #include "cql3/selection/with_term_selector.hh"
 
 namespace cql3 {
@@ -101,7 +102,10 @@ raw_identifier::processes_selection() const {
 
 shared_ptr<selector::factory>
 selectable::with_term::new_selector_factory(database& db, schema_ptr s, std::vector<const column_definition*>& defs) {
-    return abstract_function_selector::new_factory(nullptr, nullptr);
+    auto type = s->regular_column_name_type();
+    auto spec = column_specification(s->ks_name(), s->cf_name(), ::make_shared<cql3::column_identifier>(_bind_marker_name_in_selection), type);
+    auto term = _raw_term->prepare(db, s->ks_name(), ::make_shared<cql3::column_specification>(spec));
+    return term_selector::new_factory(_raw_term->to_string(), term, type);
 }
 
 sstring
