@@ -61,7 +61,7 @@ public:
     }
 
     virtual bytes_opt get_output(cql_serialization_format sf) override {
-        return to_bytes(_value);
+        return data_value(int64_t(2)).serialize(); // to_bytes(_value);
     }
 
     term_selector(cql3::raw_value_view value, data_type type)
