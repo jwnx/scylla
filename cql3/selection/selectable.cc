@@ -103,7 +103,7 @@ raw_identifier::processes_selection() const {
 
 shared_ptr<selector::factory>
 selectable::with_term::new_selector_factory(database& db, schema_ptr s, std::vector<const column_definition*>& defs) {
-    auto type = s->regular_column_name_type();
+    auto type = data_type_for<int64_t>();
     auto spec = column_specification(s->ks_name(), s->cf_name(), ::make_shared<cql3::column_identifier>(_bind_marker_name_in_selection), type);
     auto term = _raw_term->prepare(db, s->ks_name(), ::make_shared<cql3::column_specification>(spec));
     return term_selector::new_factory(_raw_term->to_string(), term, type);
