@@ -51,12 +51,15 @@
 
 namespace cql3 {
 
+class variable_specifications;
+
 namespace selection {
 
 class selectable : public assignment_testable {
 public:
     virtual ~selectable() {}
-    virtual ::shared_ptr<selector::factory> new_selector_factory(database& db, schema_ptr schema, std::vector<const column_definition*>& defs) = 0;
+
+    virtual ::shared_ptr<selector::factory> new_selector_factory(database& db, schema_ptr s, data_type expected_type, std::vector<const column_definition*>& defs, variable_specifications& bound_names) = 0;
     virtual sstring to_string() const = 0;
     virtual data_type get_exact_type_if_known(const sstring& keyspace) const = 0;
     virtual test_result test_assignment(database& db, const sstring& keyspace, ::shared_ptr<column_specification> receiver) override;
@@ -107,8 +110,8 @@ public:
 
     virtual sstring to_string() const override;
     virtual data_type get_exact_type_if_known(const sstring& keyspace) const override;
+    virtual shared_ptr<selector::factory> new_selector_factory(database& db, schema_ptr s, data_type expected_type, std::vector<const column_definition*>& defs, variable_specifications& bound_names) override;
 
-    virtual shared_ptr<selector::factory> new_selector_factory(database& db, schema_ptr s, std::vector<const column_definition*>& defs) override;
     class raw : public selectable::raw {
         functions::function_name _function_name;
         std::vector<shared_ptr<selectable::raw>> _args;
@@ -132,8 +135,8 @@ public:
 
     virtual sstring to_string() const override;
     virtual data_type get_exact_type_if_known(const sstring& keyspace) const override;
+    virtual shared_ptr<selector::factory> new_selector_factory(database& db, schema_ptr schema, data_type expected_type, std::vector<const column_definition*>& defs, variable_specifications& bound_names) override;
 
-    virtual shared_ptr<selector::factory> new_selector_factory(database& db, schema_ptr s, std::vector<const column_definition*>& defs) override;
     class raw : public selectable::raw {
         shared_ptr<functions::function> _function;
         std::vector<shared_ptr<selectable::raw>> _args;
@@ -156,8 +159,8 @@ public:
 
     virtual sstring to_string() const override;
     virtual data_type get_exact_type_if_known(const sstring& keyspace) const override;
+    virtual shared_ptr<selector::factory> new_selector_factory(database& db, schema_ptr schema, data_type expected_type, std::vector<const column_definition*>& defs, variable_specifications& bound_names) override;
 
-    virtual shared_ptr<selector::factory> new_selector_factory(database& db, schema_ptr s, std::vector<const column_definition*>& defs) override;
     class raw : public selectable::raw {
         ::shared_ptr<selectable::raw> _arg;
         cql3_type _type;

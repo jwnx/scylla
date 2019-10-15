@@ -94,9 +94,8 @@ public:
     }
 #endif
 
-    virtual ::shared_ptr<selection::selector::factory> new_selector_factory(database& db, schema_ptr schema,
-        std::vector<const column_definition*>& defs) override;
     virtual data_type get_exact_type_if_known(const sstring& keyspace) const override;
+    virtual shared_ptr<selection::selector::factory> new_selector_factory(database& db, schema_ptr schema, data_type expected_type, std::vector<const column_definition*>& defs, variable_specifications& bound_names) override;
 
     class raw;
 };

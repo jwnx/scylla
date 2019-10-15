@@ -48,8 +48,10 @@ namespace cql3 {
 namespace selection {
 
 selector_factories::selector_factories(std::vector<::shared_ptr<selectable>> selectables,
+        const std::vector<data_type>& expected_types,
         database& db, schema_ptr schema,
-        std::vector<const column_definition*>& defs)
+        std::vector<const column_definition*>& defs,
+        variable_specifications& bound_names)
     : _contains_write_time_factory(false)
     , _contains_ttl_factory(false)
     , _number_of_aggregate_factories(0)
@@ -57,8 +59,18 @@ selector_factories::selector_factories(std::vector<::shared_ptr<selectable>> sel
 {
     _factories.reserve(selectables.size());
 
-    for (auto&& selectable : selectables) {
-        auto factory = selectable->new_selector_factory(db, schema, defs);
+    fmt::print("[0] selector_factories: selectables.size {} expected_types.size {}\n", selectables.size(), expected_types.size());
+    for (size_t i = 0; i < selectables.size(); ++i) {
+        data_type expected_type = nullptr;
+        if (!expected_types.empty()) {
+            expected_type = expected_types.at(i);
+        }
+        fmt::print("[1] selector_factories: for_loop: selectable.at({}) {} ", i, selectables.at(i)->to_string());
+        if (expected_type) {
+            fmt::print(" expected_type: {}\n", expected_type->name());
+        }
+        fmt::print("\n");
+        auto factory = selectables.at(i)->new_selector_factory(db, schema, expected_type, defs, bound_names);
         _contains_write_time_factory |= factory->is_write_time_selector_factory();
         _contains_ttl_factory |= factory->is_ttl_selector_factory();
         if (factory->is_aggregate_selector_factory()) {

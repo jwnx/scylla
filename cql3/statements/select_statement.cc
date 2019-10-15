@@ -1199,6 +1199,7 @@ select_statement::select_statement(::shared_ptr<cf_name> cf_name,
 { }
 
 void select_statement::maybe_jsonize_select_clause(database& db, schema_ptr schema) {
+    fmt::print("[0] maybe_jsonize_select_clause\n");
     // Fill wildcard clause with explicit column identifiers for as_json function
     if (_parameters->is_json()) {
         if (_select_clause.empty()) {
@@ -1213,12 +1214,16 @@ void select_statement::maybe_jsonize_select_clause(database& db, schema_ptr sche
         std::vector<sstring> selector_names;
         std::vector<data_type> selector_types;
         std::vector<const column_definition*> defs;
+        //auto bound_names = get_bound_variables();
         selector_names.reserve(_select_clause.size());
         auto selectables = selection::raw_selector::to_selectables(db, _select_clause, schema);
+        fmt::print("[1] maybe_jsonize_select_clause: selectables.size: {} > _select_clause.size: {}\n", selectables.size(), _select_clause.size());
         for (auto selectable : selectables) {
             selector_names.push_back(selectable->to_string());
             selector_types.push_back(selectable->get_exact_type_if_known(schema->ks_name()));
         }
+        //selection::selector_factories factories(selectables, nullptr, db, schema, defs, bound_names);
+        //auto selectors = factories.new_instances(_opts);
 
         // Prepare args for as_json_function
         std::vector<::shared_ptr<selection::selectable::raw>> raw_selectables;
@@ -1242,7 +1247,7 @@ std::unique_ptr<prepared_statement> select_statement::prepare(database& db, cql_
 
     auto selection = _select_clause.empty()
                      ? selection::selection::wildcard(schema)
-                     : selection::selection::from_selectors(db, schema, _select_clause);
+                     : selection::selection::from_selectors(db, schema, _select_clause, *bound_names);
 
     auto restrictions = prepare_restrictions(db, schema, bound_names, selection, for_view, _parameters->allow_filtering());
 

@@ -131,7 +131,7 @@ column_identifier::get_exact_type_if_known(const sstring& keyspace) const {
 }
 
 ::shared_ptr<selection::selector::factory>
-column_identifier::new_selector_factory(database& db, schema_ptr schema, std::vector<const column_definition*>& defs) {
+column_identifier::new_selector_factory(database& db, schema_ptr schema, data_type expected_type, std::vector<const column_definition*>& defs, variable_specifications& bound_names) {
     auto def = get_column_definition(schema, *this);
     if (!def) {
         throw exceptions::invalid_request_exception(format("Undefined name {} in selection clause", _text));

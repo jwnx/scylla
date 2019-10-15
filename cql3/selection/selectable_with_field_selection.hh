@@ -60,9 +60,8 @@ public:
     }
 
     virtual sstring to_string() const override;
-
-    virtual shared_ptr<selector::factory> new_selector_factory(database& db, schema_ptr s, std::vector<const column_definition*>& defs) override;
     virtual data_type get_exact_type_if_known(const sstring& keyspace) const override;
+    virtual shared_ptr<selector::factory> new_selector_factory(database& db, schema_ptr s, data_type expected_type, std::vector<const column_definition*>& defs, variable_specifications& bound_names) override;
 
     class raw : public selectable::raw {
         shared_ptr<selectable::raw> _selected;
