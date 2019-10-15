@@ -34,6 +34,26 @@ namespace cql3 {
 
 namespace selection {
 
+assignment_testable::test_result
+selectable::test_assignment(database& db, const sstring& keyspace, shared_ptr<column_specification> receiver) {
+    data_type type = get_exact_type_if_known(keyspace);
+
+    if (type == nullptr) {
+        return assignment_testable::test_result::NOT_ASSIGNABLE;
+    }
+    if (type->is_reversed()) {
+        type = type->underlying_type();
+    }
+    if (type->is_compatible_with(*(receiver->type))) {
+        return assignment_testable::test_result::EXACT_MATCH;
+    }
+    if (type->is_value_compatible_with(*(receiver->type))) {
+        return assignment_testable::test_result::WEAKLY_ASSIGNABLE;
+    }
+
+    return assignment_testable::test_result::NOT_ASSIGNABLE;
+}
+
 shared_ptr<selector::factory>
 selectable::writetime_or_ttl::new_selector_factory(database& db, schema_ptr s, std::vector<const column_definition*>& defs) {
     auto&& def = s->get_column_definition(_id->name());

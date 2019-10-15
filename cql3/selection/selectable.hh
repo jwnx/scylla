@@ -53,11 +53,15 @@ namespace cql3 {
 
 namespace selection {
 
-class selectable {
+class selectable : public assignment_testable {
 public:
     virtual ~selectable() {}
     virtual ::shared_ptr<selector::factory> new_selector_factory(database& db, schema_ptr schema, std::vector<const column_definition*>& defs) = 0;
     virtual sstring to_string() const = 0;
+    virtual test_result test_assignment(database& db, const sstring& keyspace, ::shared_ptr<column_specification> receiver) override;
+    virtual sstring assignment_testable_source_context() const override {
+        return to_string();
+    }
 protected:
     static size_t add_and_get_index(const column_definition& def, std::vector<const column_definition*>& defs) {
         auto i = std::find(defs.begin(), defs.end(), &def);
