@@ -113,7 +113,7 @@ private:
 public:
     raw(sstring raw_text, bool keep_case);
 
-    virtual ::shared_ptr<selectable> prepare(schema_ptr s) override;
+    virtual ::shared_ptr<selectable> prepare(database& db, schema_ptr s) override;
 
     ::shared_ptr<column_identifier> prepare_column_identifier(schema_ptr s);
 

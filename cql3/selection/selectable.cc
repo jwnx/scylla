@@ -80,7 +80,7 @@ selectable::writetime_or_ttl::to_string() const {
 }
 
 shared_ptr<selectable>
-selectable::writetime_or_ttl::raw::prepare(schema_ptr s) {
+selectable::writetime_or_ttl::raw::prepare(database& db, schema_ptr s) {
     return make_shared<writetime_or_ttl>(_id->prepare_column_identifier(s), _is_writetime);
 }
 
@@ -92,9 +92,23 @@ selectable::writetime_or_ttl::raw::processes_selection() const {
 shared_ptr<selector::factory>
 selectable::with_function::new_selector_factory(database& db, schema_ptr s, std::vector<const column_definition*>& defs) {
     auto&& factories = selector_factories::create_factories_and_collect_column_definitions(_args, db, s, defs);
+    return abstract_function_selector::new_factory(_function, std::move(factories));
+}
 
-    // resolve built-in functions before user defined functions
-    auto&& fun = functions::functions::get(db, s->ks_name(), _function_name, factories->new_instances(), s->ks_name(), s->cf_name());
+sstring
+selectable::with_function::to_string() const {
+    return format("{}({})", _function->name().name, join(", ", _args));
+}
+
+
+shared_ptr<selectable>
+selectable::with_function::raw::prepare(database& db, schema_ptr s) {
+    std::vector<shared_ptr<selectable>> prepared_args;
+    prepared_args.reserve(_args.size());
+    for (auto&& arg : _args) {
+        prepared_args.push_back(arg->prepare(db, s));
+    }
+    auto&& fun = functions::functions::get(db, s->ks_name(), _function_name, prepared_args, s->ks_name(), s->cf_name());
     if (!fun) {
         throw exceptions::invalid_request_exception(format("Unknown function '{}'", _function_name));
     }
@@ -102,23 +116,8 @@ selectable::with_function::new_selector_factory(database& db, schema_ptr s, std:
         throw exceptions::invalid_request_exception(format("Unknown function {} called in selection clause", _function_name));
     }
 
-    return abstract_function_selector::new_factory(std::move(fun), std::move(factories));
+    return ::make_shared<with_function>(fun, std::move(prepared_args));
 }
-
-sstring
-selectable::with_function::to_string() const {
-    return format("{}({})", _function_name.name, join(", ", _args));
-}
-
-shared_ptr<selectable>
-selectable::with_function::raw::prepare(schema_ptr s) {
-        std::vector<shared_ptr<selectable>> prepared_args;
-        prepared_args.reserve(_args.size());
-        for (auto&& arg : _args) {
-            prepared_args.push_back(arg->prepare(s));
-        }
-        return ::make_shared<with_function>(_function_name, std::move(prepared_args));
-    }
 
 bool
 selectable::with_function::raw::processes_selection() const {
@@ -144,11 +143,11 @@ selectable::with_anonymous_function::to_string() const {
 }
 
 shared_ptr<selectable>
-selectable::with_anonymous_function::raw::prepare(schema_ptr s) {
+selectable::with_anonymous_function::raw::prepare(database& db, schema_ptr s) {
         std::vector<shared_ptr<selectable>> prepared_args;
         prepared_args.reserve(_args.size());
         for (auto&& arg : _args) {
-            prepared_args.push_back(arg->prepare(s));
+            prepared_args.push_back(arg->prepare(db, s));
         }
         return ::make_shared<with_anonymous_function>(_function, std::move(prepared_args));
     }
@@ -184,11 +183,11 @@ selectable::with_field_selection::to_string() const {
 }
 
 shared_ptr<selectable>
-selectable::with_field_selection::raw::prepare(schema_ptr s) {
+selectable::with_field_selection::raw::prepare(database& db, schema_ptr s) {
     // static_pointer_cast<> needed due to lack of covariant return type
     // support with smart pointers
-    return make_shared<with_field_selection>(_selected->prepare(s),
-            static_pointer_cast<column_identifier>(_field->prepare(s)));
+    return make_shared<with_field_selection>(_selected->prepare(db, s),
+            static_pointer_cast<column_identifier>(_field->prepare(db, s)));
 }
 
 bool
@@ -211,8 +210,8 @@ selectable::with_cast::to_string() const {
 }
 
 shared_ptr<selectable>
-selectable::with_cast::raw::prepare(schema_ptr s) {
-    return ::make_shared<selectable::with_cast>(_arg->prepare(s), _type);
+selectable::with_cast::raw::prepare(database& db, schema_ptr s) {
+    return ::make_shared<selectable::with_cast>(_arg->prepare(db, s), _type);
 }
 
 bool

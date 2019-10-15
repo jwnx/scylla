@@ -65,12 +65,12 @@ public:
      * @param raws the <code>RawSelector</code>s to converts.
      * @return a list of <code>Selectable</code>s
      */
-    static std::vector<::shared_ptr<selectable>> to_selectables(const std::vector<::shared_ptr<raw_selector>>& raws,
+    static std::vector<::shared_ptr<selectable>> to_selectables(database& db, const std::vector<::shared_ptr<raw_selector>>& raws,
             schema_ptr schema) {
         std::vector<::shared_ptr<selectable>> r;
         r.reserve(raws.size());
         for (auto&& raw : raws) {
-            r.emplace_back(raw->selectable_->prepare(schema));
+            r.emplace_back(raw->selectable_->prepare(db, schema));
         }
         return r;
     }

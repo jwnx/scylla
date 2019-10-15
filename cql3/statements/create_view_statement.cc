@@ -99,7 +99,7 @@ void create_view_statement::validate(service::storage_proxy&, const service::cli
 }
 
 static const column_definition* get_column_definition(schema_ptr schema, column_identifier::raw& identifier) {
-    auto prepared = identifier.prepare(schema);
+    auto prepared = identifier.prepare_column_identifier(schema);
     assert(dynamic_pointer_cast<column_identifier>(prepared));
     auto id = static_pointer_cast<column_identifier>(prepared);
     return schema->get_column_definition(id->name());

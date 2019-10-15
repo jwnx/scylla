@@ -244,7 +244,7 @@ uint32_t selection::add_column_for_post_processing(const column_definition& c) {
 
     ::shared_ptr<selector_factories> factories =
         selector_factories::create_factories_and_collect_column_definitions(
-            raw_selector::to_selectables(raw_selectors, schema), db, schema, defs);
+            raw_selector::to_selectables(db, raw_selectors, schema), db, schema, defs);
 
     auto metadata = collect_metadata(schema, raw_selectors, *factories);
     if (processes_selection(raw_selectors) || raw_selectors.size() != defs.size()) {
