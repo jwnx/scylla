@@ -78,7 +78,7 @@ column_identifier::raw::raw(sstring raw_text, bool keep_case)
     }
 }
 
-::shared_ptr<selection::selectable> column_identifier::raw::prepare(schema_ptr s) {
+::shared_ptr<selection::selectable> column_identifier::raw::prepare(database& db, schema_ptr s) {
     return prepare_column_identifier(s);
 }
 

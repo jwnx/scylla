@@ -76,7 +76,7 @@ public:
     public:
         virtual ~raw() {}
 
-        virtual ::shared_ptr<selectable> prepare(schema_ptr s) = 0;
+        virtual ::shared_ptr<selectable> prepare(database& db, schema_ptr s) = 0;
 
         /**
          * Returns true if any processing is performed on the selected column.
@@ -97,11 +97,11 @@ public:
 std::ostream & operator<<(std::ostream &os, const selectable& s);
 
 class selectable::with_function : public selectable {
-    functions::function_name _function_name;
+    shared_ptr<functions::function> _function;
     std::vector<shared_ptr<selectable>> _args;
 public:
-    with_function(functions::function_name fname, std::vector<shared_ptr<selectable>> args)
-        : _function_name(std::move(fname)), _args(std::move(args)) {
+    with_function(::shared_ptr<functions::function> f, std::vector<shared_ptr<selectable>> args)
+        : _function(std::move(f)), _args(std::move(args)) {
     }
 
     virtual sstring to_string() const override;
@@ -114,7 +114,7 @@ public:
         raw(functions::function_name function_name, std::vector<shared_ptr<selectable::raw>> args)
                 : _function_name(std::move(function_name)), _args(std::move(args)) {
         }
-        virtual shared_ptr<selectable> prepare(schema_ptr s) override;
+        virtual shared_ptr<selectable> prepare(database& db, schema_ptr s) override;
         virtual bool processes_selection() const override;
         static ::shared_ptr<selectable::with_function::raw> make_count_rows_function();
     };
@@ -138,7 +138,7 @@ public:
         raw(shared_ptr<functions::function> f, std::vector<shared_ptr<selectable::raw>> args)
                 : _function(f), _args(std::move(args)) {
         }
-        virtual shared_ptr<selectable> prepare(schema_ptr s) override;
+        virtual shared_ptr<selectable> prepare(database& db, schema_ptr s) override;
         virtual bool processes_selection() const override;
     };
 };
@@ -161,7 +161,7 @@ public:
         raw(shared_ptr<selectable::raw> arg, cql3_type type)
                 : _arg(std::move(arg)), _type(std::move(type)) {
         }
-        virtual shared_ptr<selectable> prepare(schema_ptr s) override;
+        virtual shared_ptr<selectable> prepare(database& db, schema_ptr s) override;
         virtual bool processes_selection() const override;
     };
 };
