@@ -89,6 +89,11 @@ selectable::writetime_or_ttl::raw::processes_selection() const {
     return true;
 }
 
+data_type
+selectable::writetime_or_ttl::get_exact_type_if_known(const sstring& keyspace) const {
+    return _is_writetime ? long_type : int32_type;
+}
+
 shared_ptr<selector::factory>
 selectable::with_function::new_selector_factory(database& db, schema_ptr s, std::vector<const column_definition*>& defs) {
     auto&& factories = selector_factories::create_factories_and_collect_column_definitions(_args, db, s, defs);
@@ -100,6 +105,10 @@ selectable::with_function::to_string() const {
     return format("{}({})", _function->name().name, join(", ", _args));
 }
 
+data_type
+selectable::with_function::get_exact_type_if_known(const sstring& keyspace) const {
+    return _function->return_type();
+}
 
 shared_ptr<selectable>
 selectable::with_function::raw::prepare(database& db, schema_ptr s) {
@@ -135,6 +144,11 @@ shared_ptr<selector::factory>
 selectable::with_anonymous_function::new_selector_factory(database& db, schema_ptr s, std::vector<const column_definition*>& defs) {
     auto&& factories = selector_factories::create_factories_and_collect_column_definitions(_args, db, s, defs);
     return abstract_function_selector::new_factory(_function, std::move(factories));
+}
+
+data_type
+selectable::with_anonymous_function::get_exact_type_if_known(const sstring& keyspace) const {
+    return _function->return_type();
 }
 
 sstring
@@ -177,6 +191,27 @@ selectable::with_field_selection::new_selector_factory(database& db, schema_ptr 
                                                        _selected->to_string(), ut->as_cql3_type(), _field));
 }
 
+data_type
+selectable::with_field_selection::get_exact_type_if_known(const sstring& keyspace) const {
+    data_type selected_type = _selected->get_exact_type_if_known(keyspace);
+    if (!selected_type) {
+        return nullptr;
+    }
+    auto&& ut = dynamic_pointer_cast<const user_type_impl>(selected_type->underlying_type());
+    if (!ut) {
+        return nullptr;
+    }
+
+    auto column_names = ut->field_names();
+    int i = 0;
+    for (auto col : column_names) {
+        if (col == _field->bytes_)
+            break;
+        i = i + 1;
+    }
+    return ut->field_type(i);
+}
+
 sstring
 selectable::with_field_selection::to_string() const {
     return format("{}.{}", _selected->to_string(), _field->to_string());
@@ -207,6 +242,11 @@ selectable::with_cast::new_selector_factory(database& db, schema_ptr s, std::vec
 sstring
 selectable::with_cast::to_string() const {
     return format("cast({} as {})", _arg->to_string(), _type.to_string());
+}
+
+data_type
+selectable::with_cast::get_exact_type_if_known(const sstring& keyspace) const {
+    return _type.get_type();
 }
 
 shared_ptr<selectable>
