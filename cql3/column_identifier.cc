@@ -28,8 +28,9 @@
 
 namespace cql3 {
 
-column_identifier::column_identifier(sstring raw_text, bool keep_case) {
+column_identifier::column_identifier(sstring raw_text, bool keep_case, data_type type) {
     _text = std::move(raw_text);
+    _type = type;
     if (!keep_case) {
         std::transform(_text.begin(), _text.end(), _text.begin(), ::tolower);
     }
@@ -37,13 +38,11 @@ column_identifier::column_identifier(sstring raw_text, bool keep_case) {
 }
 
 column_identifier::column_identifier(bytes bytes_, data_type type)
-    : bytes_(std::move(bytes_))
-    , _text(type->get_string(this->bytes_))
+    : bytes_(std::move(bytes_)), _text(type->get_string(this->bytes_)), _type(type)
 { }
 
-column_identifier::column_identifier(bytes bytes_, sstring text)
-    : bytes_(std::move(bytes_))
-    , _text(std::move(text))
+column_identifier::column_identifier(bytes bytes_, sstring text, data_type type)
+    : bytes_(std::move(bytes_)), _text(std::move(text)), _type(type)
 { }
 
 bool column_identifier::operator==(const column_identifier& other) const {
@@ -85,20 +84,25 @@ column_identifier::raw::raw(sstring raw_text, bool keep_case)
 
 ::shared_ptr<column_identifier>
 column_identifier::raw::prepare_column_identifier(schema_ptr schema) {
+    data_type possible_type = nullptr;
+    auto text_bytes = to_bytes(_text);
+    auto def = schema->get_column_definition(text_bytes);
+    if (def) {
+        possible_type = def->type;
+    }
+
     if (schema->regular_column_name_type() == utf8_type) {
-        return ::make_shared<column_identifier>(_text, true);
+        return ::make_shared<column_identifier>(_text, true, possible_type);
     }
 
     // We have a Thrift-created table with a non-text comparator.  We need to parse column names with the comparator
     // to get the correct ByteBuffer representation.  However, this doesn't apply to key aliases, so we need to
     // make a special check for those and treat them normally.  See CASSANDRA-8178.
-    auto text_bytes = to_bytes(_text);
-    auto def = schema->get_column_definition(text_bytes);
     if (def) {
-        return ::make_shared<column_identifier>(std::move(text_bytes), _text);
+        return ::make_shared<column_identifier>(std::move(text_bytes), _text, possible_type);
     }
 
-    return ::make_shared<column_identifier>(schema->regular_column_name_type()->from_string(_raw_text), _text);
+    return ::make_shared<column_identifier>(schema->regular_column_name_type()->from_string(_raw_text), _text, possible_type);
 }
 
 bool column_identifier::raw::processes_selection() const {
