@@ -80,10 +80,10 @@ abstract_function_selector::new_factory(shared_ptr<functions::function> fun, sha
             return _fun->uses_function(ks_name, function_name);
         }
 
-        virtual shared_ptr<selector> new_instance() override {
+        virtual shared_ptr<selector> new_instance(const query_options& options) override {
             using ret_type = shared_ptr<selector>;
-            return _fun->is_aggregate() ? ret_type(::make_shared<aggregate_function_selector>(_fun, _factories->new_instances()))
-                                        : ret_type(::make_shared<scalar_function_selector>(_fun, _factories->new_instances()));
+            return _fun->is_aggregate() ? ret_type(::make_shared<aggregate_function_selector>(_fun, _factories->new_instances(options)))
+                                        : ret_type(::make_shared<scalar_function_selector>(_fun, _factories->new_instances(options)));
         }
 
         virtual bool is_write_time_selector_factory() override {

@@ -141,7 +141,7 @@ protected:
         }
     };
 
-    std::unique_ptr<selectors> new_selectors() const override {
+    std::unique_ptr<selectors> new_selectors(const query_options& options) const override {
         return std::make_unique<simple_selectors>();
     }
 };
@@ -177,9 +177,9 @@ protected:
         ::shared_ptr<selector_factories> _factories;
         std::vector<::shared_ptr<selector>> _selectors;
     public:
-        selectors_with_processing(::shared_ptr<selector_factories> factories)
+        selectors_with_processing(::shared_ptr<selector_factories> factories, const query_options& options)
             : _factories(std::move(factories))
-            , _selectors(_factories->new_instances())
+            , _selectors(_factories->new_instances(options))
         { }
 
         virtual void reset() override {
@@ -208,8 +208,8 @@ protected:
         }
     };
 
-    std::unique_ptr<selectors> new_selectors() const override  {
-        return std::make_unique<selectors_with_processing>(_factories);
+    std::unique_ptr<selectors> new_selectors(const query_options& options) const override  {
+        return std::make_unique<selectors_with_processing>(_factories, options);
     }
 };
 
@@ -241,10 +241,10 @@ uint32_t selection::add_column_for_post_processing(const column_definition& c) {
 
 ::shared_ptr<selection> selection::from_selectors(database& db, schema_ptr schema, const std::vector<::shared_ptr<raw_selector>>& raw_selectors) {
     std::vector<const column_definition*> defs;
-
+    auto selectables = raw_selector::to_selectables(db, raw_selectors, schema);
     ::shared_ptr<selector_factories> factories =
         selector_factories::create_factories_and_collect_column_definitions(
-            raw_selector::to_selectables(raw_selectors, schema), db, schema, defs);
+            selectables, db, schema, defs);
 
     auto metadata = collect_metadata(schema, raw_selectors, *factories);
     if (processes_selection(raw_selectors) || raw_selectors.size() != defs.size()) {
@@ -268,15 +268,15 @@ selection::collect_metadata(schema_ptr schema, const std::vector<::shared_ptr<ra
     return r;
 }
 
-result_set_builder::result_set_builder(const selection& s, gc_clock::time_point now, cql_serialization_format sf,
+result_set_builder::result_set_builder(const selection& s, gc_clock::time_point now, const query_options& options,
                                        std::vector<size_t> group_by_cell_indices)
     : _result_set(std::make_unique<result_set>(::make_shared<metadata>(*(s.get_result_metadata()))))
-    , _selectors(s.new_selectors())
+    , _selectors(s.new_selectors(options))
     , _group_by_cell_indices(std::move(group_by_cell_indices))
     , _last_group(_group_by_cell_indices.size())
     , _group_began(false)
     , _now(now)
-    , _cql_serialization_format(sf)
+    , _cql_serialization_format(options.get_protocol_version())
 {
     if (s._collect_timestamps) {
         _timestamps.resize(s._columns.size(), 0);

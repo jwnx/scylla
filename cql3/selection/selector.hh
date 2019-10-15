@@ -48,6 +48,7 @@
 
 namespace cql3 {
 
+class query_options;
 namespace selection {
 
 class result_set_builder;
@@ -142,7 +143,7 @@ public:
      *
      * @return a new <code>selector</code> instance
      */
-    virtual ::shared_ptr<selector> new_instance() = 0;
+    virtual ::shared_ptr<selector> new_instance(const query_options& options) = 0;
 
     /**
      * Checks if this factory creates selectors instances that creates aggregates.
