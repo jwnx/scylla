@@ -60,17 +60,18 @@ public:
     bytes bytes_;
 private:
     sstring _text;
+    data_type _type;
 public:
     // less comparator sorting by text
     struct text_comparator {
         bool operator()(const column_identifier& c1, const column_identifier& c2) const;
     };
 
-    column_identifier(sstring raw_text, bool keep_case);
+    column_identifier(sstring raw_text, bool keep_case, data_type type = nullptr);
 
     column_identifier(bytes bytes_, data_type type);
 
-    column_identifier(bytes bytes_, sstring text);
+    column_identifier(bytes bytes_, sstring text, data_type type = nullptr);
 
     bool operator==(const column_identifier& other) const;
 
