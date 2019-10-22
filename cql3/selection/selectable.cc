@@ -29,6 +29,9 @@
 #include "cql3/functions/aggregate_fcts.hh"
 #include "abstract_function_selector.hh"
 #include "writetime_or_ttl_selector.hh"
+#include "cql3/term.hh"
+#include "cql3/selection/term_selector.hh"
+#include "cql3/selection/with_term_selectable.hh"
 
 namespace cql3 {
 
@@ -259,6 +262,44 @@ selectable::with_cast::raw::processes_selection() const {
     return true;
 }
 
+shared_ptr<selector::factory>
+selectable::with_term::new_selector_factory(database& db, schema_ptr s, data_type expected_type, std::vector<const column_definition*>& defs, variable_specifications& bound_names) {
+    auto type = get_exact_type_if_known(db, s->ks_name());
+    if (!type) {
+        type = expected_type;
+        if (!type) {
+            throw exceptions::invalid_request_exception(
+                    format("Cannot infer type for term {} in selection clause (try using a cast to force a type).",
+                        _raw_term->to_string()));
+        }
+    }
+
+    auto column_id = ::make_shared<cql3::column_identifier>("[selection]", true, type);
+    auto spec = ::make_shared<column_specification>(s->ks_name(), s->cf_name(), column_id, type);
+    auto term = _raw_term->prepare(db, s->ks_name(), spec);
+    term->collect_marker_specification(make_shared<variable_specifications>(bound_names));
+    return term_selector::new_factory(_raw_term->to_string(), term, type);
+}
+
+sstring
+selectable::with_term::to_string() const {
+    return _raw_term->to_string();
+}
+
+data_type
+selectable::with_term::get_exact_type_if_known(database& db, const sstring& keyspace) const {
+    return _raw_term->get_exact_type_if_known(db, keyspace);
+}
+
+shared_ptr<selectable>
+selectable::with_term::raw::prepare(database& db, schema_ptr s) {
+    return ::make_shared<selectable::with_term>(_raw_term);
+}
+
+bool
+selectable::with_term::raw::processes_selection() const {
+    return true;
+}
 std::ostream & operator<<(std::ostream &os, const selectable& s) {
     return os << s.to_string();
 }

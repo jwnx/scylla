@@ -95,6 +95,8 @@ public:
     class with_field_selection;
 
     class with_cast;
+
+    class with_term;
 };
 
 std::ostream & operator<<(std::ostream &os, const selectable& s);

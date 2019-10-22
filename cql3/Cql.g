@@ -91,6 +91,7 @@ options {
 #include "cql3/ut_name.hh"
 #include "cql3/functions/function_name.hh"
 #include "cql3/functions/function_call.hh"
+#include "cql3/selection/with_term_selectable.hh"
 #include <seastar/core/sstring.hh>
 #include "CqlLexer.hpp"
 
@@ -422,6 +423,8 @@ selector returns [shared_ptr<raw_selector> s]
 unaliasedSelector returns [shared_ptr<selectable::raw> s]
     @init { shared_ptr<selectable::raw> tmp; }
     :  ( c=cident                                  { tmp = c; }
+       | v=value                                   { tmp = make_shared<selectable::with_term::raw>(v); }
+       | '(' ct=comparatorType ')' v=value         { tmp = make_shared<selectable::with_term::raw>(make_shared<cql3::type_cast>(ct, v)); }
        | K_COUNT '(' countArgument ')'             { tmp = selectable::with_function::raw::make_count_rows_function(); }
        | K_WRITETIME '(' c=cident ')'              { tmp = make_shared<selectable::writetime_or_ttl::raw>(c, true); }
        | K_TTL       '(' c=cident ')'              { tmp = make_shared<selectable::writetime_or_ttl::raw>(c, false); }
@@ -1683,7 +1686,7 @@ non_type_ident returns [shared_ptr<cql3::column_identifier> id]
 
 unreserved_keyword returns [sstring str]
     : u=unreserved_function_keyword     { $str = u; }
-    | k=(K_TTL | K_COUNT | K_WRITETIME | K_KEY) { $str = $k.text; }
+    | k=(K_TTL | K_COUNT | K_WRITETIME | K_KEY | K_DISTINCT | K_JSON) { $str = $k.text; }
     ;
 
 unreserved_function_keyword returns [sstring str]
@@ -1719,7 +1722,6 @@ basic_unreserved_keyword returns [sstring str]
         | K_EXISTS
         | K_CUSTOM
         | K_TRIGGER
-        | K_DISTINCT
         | K_CONTAINS
         | K_STATIC
         | K_FROZEN
@@ -1734,7 +1736,6 @@ basic_unreserved_keyword returns [sstring str]
         | K_LANGUAGE
         | K_NON
         | K_DETERMINISTIC
-        | K_JSON
         | K_CACHE
         | K_BYPASS
         | K_LIKE
