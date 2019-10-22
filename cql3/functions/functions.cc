@@ -227,11 +227,11 @@ functions::get(database& db,
         if (provided_args.size() != 1) {
             throw exceptions::invalid_request_exception("toJson() accepts 1 argument only");
         }
-        selection::selector *sp = dynamic_cast<selection::selector *>(provided_args[0].get());
+        selection::selectable *sp = dynamic_cast<selection::selectable *>(provided_args[0].get());
         if (!sp) {
             throw exceptions::invalid_request_exception("toJson() is only valid in SELECT clause");
         }
-        return make_to_json_function(sp->get_type());
+        return make_to_json_function(sp->get_exact_type_if_known(db, keyspace));
     }
 
     if (name.has_keyspace()

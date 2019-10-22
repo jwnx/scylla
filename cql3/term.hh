@@ -136,6 +136,8 @@ public:
 
         virtual sstring to_string() const = 0;
 
+        virtual data_type get_exact_type_if_known(database& db, const sstring& keyspace) const = 0;
+
         virtual sstring assignment_testable_source_context() const override {
             return to_string();
         }

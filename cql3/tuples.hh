@@ -100,6 +100,19 @@ public:
         virtual sstring to_string() const override {
             return tuple_to_string(_elements);
         }
+
+        virtual data_type get_exact_type_if_known(database& db, const sstring& keyspace) const override {
+            std::vector<data_type> types;
+            for (auto e : _elements) {
+                data_type type = e->get_exact_type_if_known(db, keyspace);
+                if (!type) {
+                    return nullptr;
+                }
+                types.push_back(type);
+            }
+
+            return tuple_type_impl::get_instance(types);
+        }
     };
 
     /**
@@ -251,6 +264,11 @@ public:
         virtual sstring to_string() const override {
             return abstract_marker::raw::to_string();
         }
+
+        virtual data_type get_exact_type_if_known(database& db, const sstring& keyspace) const override {
+            return nullptr;
+        }
+
     private:
         static ::shared_ptr<column_specification> make_receiver(const std::vector<shared_ptr<column_specification>>& receivers) {
             std::vector<data_type> types;
@@ -292,6 +310,10 @@ public:
 
         virtual sstring to_string() const override {
             return abstract_marker::raw::to_string();
+        }
+
+        virtual data_type get_exact_type_if_known(database& db, const sstring& keyspace) const override {
+            return nullptr;
         }
     private:
         static ::shared_ptr<column_specification> make_in_receiver(const std::vector<shared_ptr<column_specification>>& receivers);

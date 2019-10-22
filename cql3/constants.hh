@@ -105,6 +105,10 @@ public:
         virtual sstring to_string() const override {
             return "null";
         }
+
+        virtual data_type get_exact_type_if_known(database& db, const sstring& keyspace) const override {
+            return nullptr;
+        }
     };
 
     static thread_local const ::shared_ptr<term::raw> NULL_LITERAL;
@@ -165,6 +169,10 @@ public:
 
         virtual sstring to_string() const override {
             return _type == type::STRING ? sstring(format("'{}'", _text)) : _text;
+        }
+
+        virtual data_type get_exact_type_if_known(database& db, const sstring& keyspace) const override {
+            return nullptr;
         }
     };
 

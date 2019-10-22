@@ -125,6 +125,11 @@ std::ostream& operator<<(std::ostream& out, const column_identifier::raw& id) {
     return out << id._text;
 }
 
+data_type
+column_identifier::get_exact_type_if_known(database& db, const sstring& keyspace) const {
+    return _type;
+}
+
 ::shared_ptr<selection::selector::factory>
 column_identifier::new_selector_factory(database& db, schema_ptr schema, std::vector<const column_definition*>& defs) {
     auto def = get_column_definition(schema, *this);

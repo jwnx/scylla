@@ -1215,11 +1215,9 @@ void select_statement::maybe_jsonize_select_clause(database& db, schema_ptr sche
         std::vector<const column_definition*> defs;
         selector_names.reserve(_select_clause.size());
         auto selectables = selection::raw_selector::to_selectables(db, _select_clause, schema);
-        selection::selector_factories factories(selection::raw_selector::to_selectables(db, _select_clause, schema), db, schema, defs);
-        auto selectors = factories.new_instances();
-        for (size_t i = 0; i < selectors.size(); ++i) {
-            selector_names.push_back(selectables[i]->to_string());
-            selector_types.push_back(selectors[i]->get_type());
+        for (auto selectable : selectables) {
+            selector_names.push_back(selectable->to_string());
+            selector_types.push_back(selectable->get_exact_type_if_known(db, schema->ks_name()));
         }
 
         // Prepare args for as_json_function

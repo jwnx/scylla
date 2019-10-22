@@ -81,6 +81,9 @@ public:
     public:
         virtual assignment_testable::test_result test_assignment(database& db, const sstring& keyspace, shared_ptr<column_specification> receiver) override;
         virtual sstring to_string() const override;
+        virtual data_type get_exact_type_if_known(database& db, const sstring& keyspace) const override {
+            return nullptr; // throw exception!!
+        }
     };
 };
 

@@ -47,6 +47,7 @@
 #include "column_identifier.hh"
 #include "to_string.hh"
 #include <unordered_set>
+#include "types/set.hh"
 
 namespace cql3 {
 
@@ -69,6 +70,15 @@ public:
         assignment_testable::test_result
         test_assignment(database& db, const sstring& keyspace, shared_ptr<column_specification> receiver);
         virtual sstring to_string() const override;
+        virtual data_type get_exact_type_if_known(database& db, const sstring& keyspace) const override {
+            for (auto e : _elements) {
+                data_type type = e->get_exact_type_if_known(db, keyspace);
+                if (type) {
+                    return set_type_impl::get_instance(type, false);
+                }
+            }
+            return nullptr;
+        }
     };
 
     class value : public terminal, collection_terminal {

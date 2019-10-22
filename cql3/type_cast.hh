@@ -85,6 +85,10 @@ public:
     virtual sstring to_string() const override {
         return format("({}){}", _type, _term);
     }
+
+    virtual data_type get_exact_type_if_known(database& db, const sstring& keyspace) const override {
+        return _type->prepare(db, keyspace).get_type();
+    }
 };
 
 }

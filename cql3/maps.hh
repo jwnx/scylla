@@ -46,6 +46,7 @@
 #include "operation.hh"
 #include "update_parameters.hh"
 #include "constants.hh"
+#include "types/map.hh"
 
 namespace cql3 {
 
@@ -72,6 +73,23 @@ public:
     public:
         virtual assignment_testable::test_result test_assignment(database& db, const sstring& keyspace, ::shared_ptr<column_specification> receiver) override;
         virtual sstring to_string() const override;
+        virtual data_type get_exact_type_if_known(database& db, const sstring& keyspace) const override {
+            data_type key_type = nullptr;
+            data_type value_type = nullptr;
+            for (auto e : entries) {
+                if (!key_type) {
+                    e.first->get_exact_type_if_known(db, keyspace);
+                }
+                if (!value_type) {
+                    e.second->get_exact_type_if_known(db, keyspace);
+                }
+                if (key_type && value_type) {
+                    return map_type_impl::get_instance(key_type, value_type, false);
+                }
+            }
+
+            return nullptr;
+        }
     };
 
     class value : public terminal, collection_terminal {

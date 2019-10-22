@@ -49,14 +49,14 @@
 #include "exceptions/exceptions.hh"
 #include <seastar/core/print.hh>
 #include "cql3/cql3_type.hh"
-#include "cql3/selection/selector.hh"
+#include "cql3/selection/selectable.hh"
 
 namespace cql3 {
 namespace functions {
 
 class castas_functions {
 public:
-    static shared_ptr<function> get(data_type to_type, const std::vector<shared_ptr<cql3::selection::selector>>& provided_args, schema_ptr s);
+    static shared_ptr<function> get(database& db, data_type to_type,  const std::vector<shared_ptr<cql3::selection::selectable>>& provided_args, schema_ptr s);
 };
 
 }
