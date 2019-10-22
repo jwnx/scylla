@@ -239,12 +239,16 @@ uint32_t selection::add_column_for_post_processing(const column_definition& c) {
     return _columns.size() - 1;
 }
 
-::shared_ptr<selection> selection::from_selectors(database& db, schema_ptr schema, const std::vector<::shared_ptr<raw_selector>>& raw_selectors) {
+::shared_ptr<selection> selection::from_selectors(database& db, schema_ptr schema, const std::vector<::shared_ptr<raw_selector>>& raw_selectors, variable_specifications& bound_names) {
     std::vector<const column_definition*> defs;
-
+    std::vector<data_type> expected_types;
+    auto selectables = raw_selector::to_selectables(db, raw_selectors, schema);
+    for (auto selectable : selectables) {
+        expected_types.push_back(selectable->get_exact_type_if_known(db, schema->ks_name()));
+    }
     ::shared_ptr<selector_factories> factories =
         selector_factories::create_factories_and_collect_column_definitions(
-            raw_selector::to_selectables(db, raw_selectors, schema), db, schema, defs);
+            selectables, expected_types, db, schema, defs, bound_names);
 
     auto metadata = collect_metadata(schema, raw_selectors, *factories);
     if (processes_selection(raw_selectors) || raw_selectors.size() != defs.size()) {

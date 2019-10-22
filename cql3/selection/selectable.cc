@@ -55,7 +55,7 @@ selectable::test_assignment(database& db, const sstring& keyspace, shared_ptr<co
 }
 
 shared_ptr<selector::factory>
-selectable::writetime_or_ttl::new_selector_factory(database& db, schema_ptr s, std::vector<const column_definition*>& defs) {
+selectable::writetime_or_ttl::new_selector_factory(database& db, schema_ptr s, data_type expected_type, std::vector<const column_definition*>& defs, variable_specifications& bound_names) {
     auto&& def = s->get_column_definition(_id->name());
     if (!def || def->is_hidden_from_cql()) {
         throw exceptions::invalid_request_exception(format("Undefined name {} in selection clause", _id));
@@ -95,8 +95,8 @@ selectable::writetime_or_ttl::get_exact_type_if_known(database& db, const sstrin
 }
 
 shared_ptr<selector::factory>
-selectable::with_function::new_selector_factory(database& db, schema_ptr s, std::vector<const column_definition*>& defs) {
-    auto&& factories = selector_factories::create_factories_and_collect_column_definitions(_args, db, s, defs);
+selectable::with_function::new_selector_factory(database& db, schema_ptr s, data_type expected_type, std::vector<const column_definition*>& defs, variable_specifications& bound_names) {
+    auto&& factories = selector_factories::create_factories_and_collect_column_definitions(_args, _function->arg_types(), db, s, defs, bound_names);
     return abstract_function_selector::new_factory(_function, std::move(factories));
 }
 
@@ -141,8 +141,8 @@ selectable::with_function::raw::make_count_rows_function() {
 }
 
 shared_ptr<selector::factory>
-selectable::with_anonymous_function::new_selector_factory(database& db, schema_ptr s, std::vector<const column_definition*>& defs) {
-    auto&& factories = selector_factories::create_factories_and_collect_column_definitions(_args, db, s, defs);
+selectable::with_anonymous_function::new_selector_factory(database& db, schema_ptr s, data_type expected_type, std::vector<const column_definition*>& defs, variable_specifications& bound_names) {
+    auto&& factories = selector_factories::create_factories_and_collect_column_definitions(_args, _function->arg_types(), db, s, defs, bound_names);
     return abstract_function_selector::new_factory(_function, std::move(factories));
 }
 
@@ -172,14 +172,14 @@ selectable::with_anonymous_function::raw::processes_selection() const {
 }
 
 shared_ptr<selector::factory>
-selectable::with_field_selection::new_selector_factory(database& db, schema_ptr s, std::vector<const column_definition*>& defs) {
-    auto&& factory = _selected->new_selector_factory(db, s, defs);
-    auto&& type = factory->new_instance()->get_type();
+selectable::with_field_selection::new_selector_factory(database& db, schema_ptr s, data_type expected_type, std::vector<const column_definition*>& defs, variable_specifications& bound_names) {
+    auto&& factory = _selected->new_selector_factory(db, s, expected_type, defs, bound_names);
+    auto&& type = factory->get_column_specification(s)->type;
     auto&& ut = dynamic_pointer_cast<const user_type_impl>(type->underlying_type());
     if (!ut) {
         throw exceptions::invalid_request_exception(
                 format("Invalid field selection: {} of type {} is not a user type",
-                       _selected->to_string(), factory->new_instance()->get_type()->as_cql3_type()));
+                       _selected->to_string(), type->as_cql3_type()));
     }
     for (size_t i = 0; i < ut->size(); ++i) {
         if (ut->field_name(i) != _field->bytes_) {
@@ -231,9 +231,9 @@ selectable::with_field_selection::raw::processes_selection() const {
 }
 
 shared_ptr<selector::factory>
-selectable::with_cast::new_selector_factory(database& db, schema_ptr s, std::vector<const column_definition*>& defs) {
+selectable::with_cast::new_selector_factory(database& db, schema_ptr s, data_type expected_type, std::vector<const column_definition*>& defs, variable_specifications& bound_names) {
     std::vector<shared_ptr<selectable>> args{_arg};
-    auto&& factories = selector_factories::create_factories_and_collect_column_definitions(args, db, s, defs);
+    auto&& factories = selector_factories::create_factories_and_collect_column_definitions(args, std::vector<data_type>{}, db, s, defs, bound_names);
     auto&& fun = functions::castas_functions::get(db, _type.get_type(), args, s);
 
     return abstract_function_selector::new_factory(std::move(fun), std::move(factories));

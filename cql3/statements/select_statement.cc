@@ -1242,7 +1242,7 @@ std::unique_ptr<prepared_statement> select_statement::prepare(database& db, cql_
 
     auto selection = _select_clause.empty()
                      ? selection::selection::wildcard(schema)
-                     : selection::selection::from_selectors(db, schema, _select_clause);
+                     : selection::selection::from_selectors(db, schema, _select_clause, *bound_names);
 
     auto restrictions = prepare_restrictions(db, schema, bound_names, selection, for_view, _parameters->allow_filtering());
 

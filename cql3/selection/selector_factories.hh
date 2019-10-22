@@ -91,13 +91,22 @@ public:
      */
     static ::shared_ptr<selector_factories> create_factories_and_collect_column_definitions(
                 std::vector<::shared_ptr<selectable>> selectables,
+                const std::vector<data_type>& expected_types,
                 database& db, schema_ptr schema,
-                std::vector<const column_definition*>& defs) {
-        return ::make_shared<selector_factories>(std::move(selectables), db, std::move(schema), defs);
+                std::vector<const column_definition*>& defs,
+                variable_specifications& bound_names) {
+
+        return ::make_shared<selector_factories>(std::move(selectables),
+                expected_types,
+                db, std::move(schema),
+                defs, bound_names);
     }
 
     selector_factories(std::vector<::shared_ptr<selectable>> selectables,
-            database& db, schema_ptr schema, std::vector<const column_definition*>& defs);
+                const std::vector<data_type>& expected_types,
+                database& db, schema_ptr schema,
+                std::vector<const column_definition*>& defs,
+                variable_specifications& bound_names);
 public:
     bool uses_function(const sstring& ks_name, const sstring& function_name) const;
 
