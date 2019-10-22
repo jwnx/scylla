@@ -68,7 +68,7 @@ public:
         return _type;
     }
 
-    virtual ::shared_ptr<selector> new_instance() override;
+    virtual ::shared_ptr<selector> new_instance(const query_options& options) override;
 };
 
 class simple_selector : public selector {

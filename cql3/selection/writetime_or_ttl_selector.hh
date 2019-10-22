@@ -71,7 +71,7 @@ public:
                 return _is_writetime ? long_type : int32_type;
             }
 
-            virtual shared_ptr<selector> new_instance() override {
+            virtual shared_ptr<selector> new_instance(const query_options& options) override {
                 return make_shared<writetime_or_ttl_selector>(_column_name, _idx, _is_writetime);
             }
 

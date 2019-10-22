@@ -73,8 +73,8 @@ public:
                 return _type->field_type(_field);
             }
 
-            shared_ptr<selector> new_instance() override {
-                return make_shared<field_selector>(_type, _field, _factory->new_instance());
+            shared_ptr<selector> new_instance(const query_options& options) override {
+                return make_shared<field_selector>(_type, _field, _factory->new_instance(options));
             }
 
             bool is_aggregate_selector_factory() override {

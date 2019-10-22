@@ -153,7 +153,7 @@ public:
      * Creates a list of new <code>selector</code> instances.
      * @return a list of new <code>selector</code> instances.
      */
-    std::vector<::shared_ptr<selector>> new_instances() const;
+    std::vector<::shared_ptr<selector>> new_instances(const query_options& options) const;
 
     auto begin() const {
         return _factories.begin();

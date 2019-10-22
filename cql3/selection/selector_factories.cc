@@ -82,11 +82,11 @@ void selector_factories::add_selector_for_post_processing(const column_definitio
     ++_number_of_factories_for_post_processing;
 }
 
-std::vector<::shared_ptr<selector>> selector_factories::new_instances() const {
+std::vector<::shared_ptr<selector>> selector_factories::new_instances(const query_options& options) const {
     std::vector<::shared_ptr<selector>> r;
     r.reserve(_factories.size());
     for (auto&& f : _factories) {
-        r.emplace_back(f->new_instance());
+        r.emplace_back(f->new_instance(options));
     }
     return r;
 }
