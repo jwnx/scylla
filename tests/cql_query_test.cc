@@ -4166,3 +4166,97 @@ SEASTAR_TEST_CASE(test_rf_expand) {
         });
     });
 }
+
+namespace {
+
+auto assert_select_literal_infers_type(cql_test_env& e, const char* query, bytes value) {
+    require_rows(e, query, {{I(1), T("one"),   value},
+                            {I(2), T("two"),   value},
+                            {I(3), T("three"), value}});
+}
+
+auto assert_select_literal_cannot(std::function<bool (const std::exception&)> predicate, cql_test_env& e, const char* query) {
+    BOOST_CHECK_EXCEPTION(e.execute_cql(query).get(),
+                            exceptions::invalid_request_exception,
+                            predicate);
+}
+
+}
+
+SEASTAR_TEST_CASE(test_select_literal) {
+    return do_with_cql_env_thread([] (cql_test_env& e) {
+        cquery_nofail(e, "create table tb (pk int, ck int, t text, primary key (pk, ck))");
+        cquery_nofail(e, "insert into tb (pk, ck, t) values (1, 1, 'one')");
+        cquery_nofail(e, "insert into tb (pk, ck, t) values (2, 2, 'two')");
+        cquery_nofail(e, "insert into tb (pk, ck, t) values (3, 3, 'three')");
+
+        auto infer_type = exception_predicate::message_contains("Cannot infer type for term");
+
+        assert_select_literal_infers_type(e, "select ck, t, (text)'as const' from tb", T("as const"));
+        assert_select_literal_infers_type(e, "select ck, t, (tinyint)1 from tb", byte_type->decompose(int8_t(1)));
+        assert_select_literal_infers_type(e, "select ck, t, (smallint)1 from tb", short_type->decompose(int16_t(1)));
+        assert_select_literal_infers_type(e, "select ck, t, (int)1 from tb", I(1));
+        assert_select_literal_infers_type(e, "select ck, t, (float)1 from tb", float_type->decompose(1.0f));
+        assert_select_literal_infers_type(e, "select ck, t, (double)1 from tb", double_type->decompose(1.0));
+        assert_select_literal_infers_type(e, "select ck, t, (bigint)1 from tb", long_type->decompose(int64_t(1)));
+        assert_select_literal_infers_type(e, "select ck, t, (decimal)1 from tb", decimal_type->from_string("1"));
+        assert_select_literal_infers_type(e, "select ck, t, (varint)1 from tb", varint_type->from_string("1"));
+        assert_select_literal_infers_type(e, "select ck, t, (date)'2019-01-01' from tb", simple_date_type->from_string("2019-01-01"));
+        assert_select_literal_infers_type(e, "select ck, t, (timestamp)'2019-01-01t01:00:00' from tb", timestamp_type->from_string("2019-01-01t01:00:00"));
+
+        // TODO: Add support to more types
+        //assert_select_literal_infers_type(e, "select ck, t, (duration)'1h0m0s0ms' from tb", duration_type->from_string("1h0m0s0ms"));
+        //assert_select_literal_infers_type(e, "select ck, t, (timeuuid)'50554d6e-29bb-11e5-b345-feff819cdc9f' from tb", timeuuid_type->from_string("50554d6e-29bb-11e5-b345-feff819cdc9f"));
+        //assert_select_literal_infers_type(e, "select ck, t, (uuid)'c25ae960-07a2-467d-8f35-5bd38647b367' from tb", uuid_type->from_string("c25ae960-07a2-467d-8f35-5bd38647b367"));
+        //assert_select_literal_infers_type(e, "select ck, t, (blob)'0x01' from tb", from_hex(0x01));
+        //assert_select_literal_infers_type(e, "select ck, t, (boolean)'true' from tb", boolean_type->decompose(true));
+
+        assert_select_literal_cannot(infer_type, e, "select ck, t, 43 from tb");
+        assert_select_literal_cannot(infer_type, e, "select ck, t, 'a const' from tb");
+        assert_select_literal_cannot(infer_type, e, "select ck, t, (1, 'foo') from tb");
+        assert_select_literal_cannot(infer_type, e, "select ck, t, ((1, 'foo')) from tb");
+        assert_select_literal_cannot(infer_type, e, "select ck, t, [1,2,3] from tb");
+        assert_select_literal_cannot(infer_type, e, "select ck, t, {1,2,3} from tb");
+        assert_select_literal_cannot(infer_type, e, "select ck, t, {1: 'one',2: 'two',3: 'three'} from tb");
+        assert_select_literal_cannot(infer_type, e, "select ck, t, {} from tb");
+
+        assert_select_literal_cannot(infer_type, e, "select ? from tb");
+        assert_select_literal_cannot(infer_type, e, "select ck, ? from tb");
+        assert_select_literal_cannot(infer_type, e, "select ck, null from tb");
+
+        cquery_nofail(e, "select ck, t, (list<int>)[] from tb");
+        cquery_nofail(e, "select ck, t, (set<int>){} from tb");
+        cquery_nofail(e, "select ck, t, (map<int, text>){} from tb");
+
+        auto simple_tuple_type = tuple_type_impl::get_instance({int32_type, utf8_type});
+        auto simple_tuple_value = make_tuple_value(simple_tuple_type, tuple_type_impl::native_type({int32_t(1), "foo"}));
+        assert_select_literal_infers_type(e, "select ck, t, (tuple<int, text>)(1, 'foo') from tb", simple_tuple_type->decompose(simple_tuple_value));
+        auto tuple_tuple_type = tuple_type_impl::get_instance({simple_tuple_type});
+        auto tuple_tuple_value = make_tuple_value(tuple_tuple_type, {simple_tuple_value});
+        assert_select_literal_infers_type(e, "select ck, t, (tuple<tuple<int, text>>)((1, 'foo')) from tb", tuple_tuple_type->decompose(tuple_tuple_value));
+
+        auto simple_list_type = list_type_impl::get_instance(int32_type, true);
+        auto simple_list_value = make_list_value(simple_list_type, list_type_impl::native_type({{1}, {2}, {3}}));
+        assert_select_literal_infers_type(e, "select ck, t, (list<int>)[1,2,3] from tb", simple_list_type->decompose(simple_list_value));
+        auto list_list_type = list_type_impl::get_instance(simple_list_type, true);
+        auto list_list_value = make_list_value(list_list_type, {simple_list_value});
+        assert_select_literal_infers_type(e, "select ck, t, (list<frozen<list<int>>>)[[1,2,3]] from tb", list_list_type->decompose(list_list_value));
+
+        auto simple_set_type = set_type_impl::get_instance(int32_type, true);
+        auto simple_set_value = make_set_value(simple_set_type, set_type_impl::native_type({{1}, {2}, {3}}));
+        assert_select_literal_infers_type(e, "select ck, t, (set<int>){1,2,3} from tb", simple_set_type->decompose(simple_set_value));
+        auto set_set_type = set_type_impl::get_instance(simple_set_type, true);
+        auto set_set_value = make_set_value(set_set_type, {simple_set_value});
+        assert_select_literal_infers_type(e, "select ck, t, (set<frozen<set<int>>>){{1,2,3}} from tb", set_set_type->decompose(set_set_value));
+
+        auto simple_map_type = map_type_impl::get_instance(int32_type, utf8_type, true);
+        auto simple_map_value = make_map_value(simple_map_type, map_type_impl::native_type({{1, "one"}, {2, "two"}, {3, "three"}}));
+        assert_select_literal_infers_type(e, "select ck, t, (map<int, text>){'1': 'one', '2': 'two', '3': 'three'} from tb", simple_map_type->decompose(simple_map_value));
+
+        // FIXME: Maps inside maps are not castable
+        //auto map_map_type = map_type_impl::get_instance(int32_type, simple_map_type, true);
+        //auto map_map_value = make_map_value(map_map_type, map_type_impl::native_type({{1, simple_map_value}}));
+        //assert_select_literal_infers_type(e, "select ck, t, (map<int, frozen<map<int, text>>>){'1', {'1': 'one', '2': 'two', '3': 'three'}} from tb", map_map_type->decompose(map_map_value));
+
+    });
+}
