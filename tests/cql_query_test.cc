@@ -4352,3 +4352,15 @@ SEASTAR_TEST_CASE(test_operation_fcts_add_types) {
         assert_add_operation_in_select_returns_value(e, "select p+(decimal)2.0 from t_decimal", decimal_type->from_string("3.0"));
     });
 }
+
+
+SEASTAR_TEST_CASE(test_operation_fcts_multiple_operations) {
+    return do_with_cql_env_thread([] (cql_test_env& e) {
+        cquery_nofail(e, "create table t_double (p double primary key, s text)");
+        cquery_nofail(e, "insert into t_double (p, s) values (10, 'abc')");
+
+        assert_add_operation_in_select_returns_value(e, "select p+(tinyint)5-(smallint)2+(int)12 from t_double", double_type->decompose(double(25)));
+        assert_add_operation_in_select_returns_value(e, "select p+(bigint)5-(float)2+(double)12 from t_double", double_type->decompose(double(25)));
+        assert_add_operation_in_select_returns_value(e, "select p+(decimal)5-(tinyint)2+(smallint)12 from t_double", decimal_type->from_string("25.0"));
+    });
+}
