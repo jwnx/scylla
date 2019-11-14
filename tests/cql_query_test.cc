@@ -4260,3 +4260,95 @@ SEASTAR_TEST_CASE(test_select_literal) {
 
     });
 }
+
+namespace {
+
+auto assert_add_operation_in_select_returns_value(cql_test_env& e, const char* query, bytes value) {
+    auto msg = e.execute_cql(query).get0();
+    assert_that(msg).is_rows().with_row({
+        { value }
+    });
+}
+
+}
+
+SEASTAR_TEST_CASE(test_operation_fcts_add_types) {
+    return do_with_cql_env_thread([] (cql_test_env& e) {
+        cquery_nofail(e, "create table t_tinyint (p tinyint primary key, s text)");
+        cquery_nofail(e, "insert into t_tinyint (p, s) values (1, 'abc')");
+
+        assert_add_operation_in_select_returns_value(e, "select p+(tinyint)2 from t_tinyint;", byte_type->decompose(int8_t(3)));
+        assert_add_operation_in_select_returns_value(e, "select p+(smallint)2 from t_tinyint;", short_type->decompose(int16_t(3)));
+        assert_add_operation_in_select_returns_value(e, "select p+(int)2 from t_tinyint;", int32_type->decompose(int32_t(3)));
+        assert_add_operation_in_select_returns_value(e, "select p+(bigint)2 from t_tinyint;", long_type->decompose(int64_t(3)));
+        assert_add_operation_in_select_returns_value(e, "select p+(float)2 from t_tinyint;", float_type->decompose(float(3)));
+        assert_add_operation_in_select_returns_value(e, "select p+(double)2 from t_tinyint;", double_type->decompose(double(3)));
+        assert_add_operation_in_select_returns_value(e, "select p+(decimal)2 from t_tinyint;", decimal_type->from_string("3.0"));
+
+        cquery_nofail(e, "create table t_smallint (p smallint primary key, s text)");
+        cquery_nofail(e, "insert into t_smallint (p, s) values (1, 'abc')");
+
+        assert_add_operation_in_select_returns_value(e, "select p+(tinyint)2 from t_smallint", short_type->decompose(int16_t(3)));
+        assert_add_operation_in_select_returns_value(e, "select p+(smallint)2 from t_smallint", short_type->decompose(int16_t(3)));
+        assert_add_operation_in_select_returns_value(e, "select p+(int)2 from t_smallint", int32_type->decompose(int32_t(3)));
+        assert_add_operation_in_select_returns_value(e, "select p+(bigint)2 from t_smallint", long_type->decompose(int64_t(3)));
+        assert_add_operation_in_select_returns_value(e, "select p+(float)2 from t_smallint", float_type->decompose(float(3)));
+        assert_add_operation_in_select_returns_value(e, "select p+(double)2 from t_smallint", double_type->decompose(double(3)));
+        assert_add_operation_in_select_returns_value(e, "select p+(decimal)2 from t_smallint", decimal_type->from_string("3.0"));
+
+        cquery_nofail(e, "create table t_int (p int primary key, s text)");
+        cquery_nofail(e, "insert into t_int (p, s) values (1, 'abc')");
+
+        assert_add_operation_in_select_returns_value(e, "select p+(tinyint)2 from t_int", int32_type->decompose(int32_t(3)));
+        assert_add_operation_in_select_returns_value(e, "select p+(smallint)2 from t_int", int32_type->decompose(int32_t(3)));
+        assert_add_operation_in_select_returns_value(e, "select p+(int)2 from t_int", int32_type->decompose(int32_t(3)));
+        assert_add_operation_in_select_returns_value(e, "select p+(bigint)2 from t_int", long_type->decompose(int64_t(3)));
+        assert_add_operation_in_select_returns_value(e, "select p+(float)2 from t_int", float_type->decompose(float(3)));
+        assert_add_operation_in_select_returns_value(e, "select p+(double)2 from t_int", double_type->decompose(double(3)));
+        assert_add_operation_in_select_returns_value(e, "select p+(decimal)2 from t_int", decimal_type->from_string("3.0"));
+
+        cquery_nofail(e, "create table t_bigint (p bigint primary key, s text)");
+        cquery_nofail(e, "insert into t_bigint (p, s) values (1, 'abc')");
+
+        assert_add_operation_in_select_returns_value(e, "select p+(tinyint)2 from t_bigint", long_type->decompose(int64_t(3)));
+        assert_add_operation_in_select_returns_value(e, "select p+(smallint)2 from t_bigint", long_type->decompose(int64_t(3)));
+        assert_add_operation_in_select_returns_value(e, "select p+(int)2 from t_bigint", long_type->decompose(int64_t(3)));
+        assert_add_operation_in_select_returns_value(e, "select p+(bigint)2 from t_bigint", long_type->decompose(int64_t(3)));
+        assert_add_operation_in_select_returns_value(e, "select p+(float)2 from t_bigint", double_type->decompose(double(3)));
+        assert_add_operation_in_select_returns_value(e, "select p+(double)2 from t_bigint", double_type->decompose(double(3)));
+        assert_add_operation_in_select_returns_value(e, "select p+(decimal)2 from t_bigint", decimal_type->from_string("3.0"));
+
+        cquery_nofail(e, "create table t_float (p float primary key, s text)");
+        cquery_nofail(e, "insert into t_float (p, s) values (1, 'abc')");
+
+        assert_add_operation_in_select_returns_value(e, "select p+(tinyint)2 from t_float", float_type->decompose(float(3)));
+        assert_add_operation_in_select_returns_value(e, "select p+(smallint)2 from t_float", float_type->decompose(float(3)));
+        assert_add_operation_in_select_returns_value(e, "select p+(int)2 from t_float", float_type->decompose(float(3)));
+        assert_add_operation_in_select_returns_value(e, "select p+(bigint)2 from t_float", double_type->decompose(double(3)));
+        assert_add_operation_in_select_returns_value(e, "select p+(float)2 from t_float", float_type->decompose(float(3)));
+        assert_add_operation_in_select_returns_value(e, "select p+(double)2 from t_float", double_type->decompose(double(3)));
+        assert_add_operation_in_select_returns_value(e, "select p+(decimal)2.0 from t_float", decimal_type->from_string("3.0"));
+
+        cquery_nofail(e, "create table t_double (p double primary key, s text)");
+        cquery_nofail(e, "insert into t_double (p, s) values (1, 'abc')");
+
+        assert_add_operation_in_select_returns_value(e, "select p+(tinyint)2 from t_double", double_type->decompose(double(3)));
+        assert_add_operation_in_select_returns_value(e, "select p+(smallint)2 from t_double", double_type->decompose(double(3)));
+        assert_add_operation_in_select_returns_value(e, "select p+(int)2 from t_double", double_type->decompose(double(3)));
+        assert_add_operation_in_select_returns_value(e, "select p+(bigint)2 from t_double", double_type->decompose(double(3)));
+        assert_add_operation_in_select_returns_value(e, "select p+(float)2 from t_double", double_type->decompose(double(3)));
+        assert_add_operation_in_select_returns_value(e, "select p+(double)2 from t_double", double_type->decompose(double(3)));
+        assert_add_operation_in_select_returns_value(e, "select p+(decimal)2.0 from t_double", decimal_type->from_string("3.0"));
+
+        cquery_nofail(e, "create table t_decimal (p decimal primary key, s text)");
+        cquery_nofail(e, "insert into t_decimal (p, s) values (1.0, 'abc')");
+
+        assert_add_operation_in_select_returns_value(e, "select p+(tinyint)2 from t_decimal", decimal_type->from_string("3.0"));
+        assert_add_operation_in_select_returns_value(e, "select p+(smallint)2 from t_decimal", decimal_type->from_string("3.0"));
+        assert_add_operation_in_select_returns_value(e, "select p+(int)2 from t_decimal", decimal_type->from_string("3.0"));
+        assert_add_operation_in_select_returns_value(e, "select p+(bigint)2 from t_decimal", decimal_type->from_string("3.0"));
+        assert_add_operation_in_select_returns_value(e, "select p+(float)2 from t_decimal", decimal_type->from_string("3.0"));
+        assert_add_operation_in_select_returns_value(e, "select p+(double)2 from t_decimal", decimal_type->from_string("3.0"));
+        assert_add_operation_in_select_returns_value(e, "select p+(decimal)2.0 from t_decimal", decimal_type->from_string("3.0"));
+    });
+}
