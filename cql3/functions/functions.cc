@@ -137,6 +137,8 @@ functions::init() {
 
     // FIXME: more count/min/max
 
+    operation_fcts::declare_operations(declare);
+
     declare(make_varchar_as_blob_fct());
     declare(make_blob_as_varchar_fct());
     declare(aggregate_fcts::make_sum_function<int8_t>());

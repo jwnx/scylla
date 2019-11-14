@@ -43,6 +43,7 @@
 
 #include "function.hh"
 #include "aggregate_fcts.hh"
+#include "operation_fcts.hh"
 #include "time_uuid_fcts.hh"
 #include "uuid_fcts.hh"
 #include "bytes_conversion_fcts.hh"
