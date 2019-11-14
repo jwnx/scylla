@@ -381,7 +381,6 @@ useStatement returns [::shared_ptr<raw::use_statement> stmt]
  */
 selectStatement returns [shared_ptr<raw::select_statement> expr]
     @init {
-        bool is_distinct = false;
         ::shared_ptr<cql3::term::raw> limit;
         ::shared_ptr<cql3::term::raw> per_partition_limit;
         raw::select_statement::parameters::orderings_type orderings;
@@ -389,11 +388,8 @@ selectStatement returns [shared_ptr<raw::select_statement> expr]
         bool is_json = false;
         bool bypass_cache = false;
     }
-    : K_SELECT (
-                ( K_JSON { is_json = true; } )?
-                ( K_DISTINCT { is_distinct = true; } )?
-                sclause=selectClause
-               )
+    : K_SELECT
+        ( (K_JSON selectClause)=> K_JSON { is_json = true; } )? sclause=selectClause
       K_FROM cf=columnFamilyName
       ( K_WHERE wclause=whereClause )?
       ( K_GROUP K_BY gbcolumns=listOfIdentifiers)?
@@ -403,14 +399,22 @@ selectStatement returns [shared_ptr<raw::select_statement> expr]
       ( K_ALLOW K_FILTERING  { allow_filtering = true; } )?
       ( K_BYPASS K_CACHE { bypass_cache = true; })?
       {
-          auto params = ::make_shared<raw::select_statement::parameters>(std::move(orderings), is_distinct, allow_filtering, is_json, bypass_cache);
+          auto params = ::make_shared<raw::select_statement::parameters>(std::move(orderings), $sclause.is_distinct, allow_filtering, is_json, bypass_cache);
           $expr = ::make_shared<raw::select_statement>(std::move(cf), std::move(params),
-            std::move(sclause), std::move(wclause), std::move(limit), std::move(per_partition_limit),
+            std::move($sclause.selectors), std::move(wclause), std::move(limit), std::move(per_partition_limit),
             std::move(gbcolumns));
       }
     ;
 
-selectClause returns [std::vector<shared_ptr<raw_selector>> expr]
+selectClause returns [bool is_distinct, std::vector<shared_ptr<raw_selector>> selectors]
+    @init{ bool is_distinct = false; }
+    // distinct is a valid column name. By consequence, we need to resolve the
+    // ambiguity for "distinct - distinct"
+    : (K_DISTINCT selectors)=> K_DISTINCT s=selectors { $is_distinct = true; $selectors = s; }
+    | s=selectors { $selectors = s; }
+    ;
+
+selectors returns [std::vector<shared_ptr<raw_selector>> expr]
     : t1=selector { $expr.push_back(t1); } (',' tN=selector { $expr.push_back(tN); })*
     | '*' { }
     ;
@@ -421,24 +425,66 @@ selector returns [shared_ptr<raw_selector> s]
     ;
 
 unaliasedSelector returns [shared_ptr<selectable::raw> s]
+    : a = selectionAddition { $s = a; }
+    ;
+
+selectionAddition returns [shared_ptr<selectable::raw> s]
+    :   l = selectionMultiplication { $s = l; }
+        ( '+' r=selectionMultiplication   { $s = selectable::with_function::raw::make_operation_function("add", $s, r); }
+        | '-' r=selectionMultiplication   { $s = selectable::with_function::raw::make_operation_function("subtract", $s, r); }
+        )*
+    ;
+
+selectionMultiplication returns [shared_ptr<selectable::raw> s]
+    :   l = selectionGroup  { $s = l; }
+        ( '*' r=selectionGroup  { $s = selectable::with_function::raw::make_operation_function("add", $s, r); }
+        )*
+    ;
+
+selectionGroup returns [shared_ptr<selectable::raw> s]
+    :   (selectionGroupWithField)=> f=selectionGroupWithField { $s = f; }
+        | g=selectionGroupWithoutField { $s = g; }
+    ;
+
+selectionGroupWithField returns [shared_ptr<selectable::raw> s]
     @init { shared_ptr<selectable::raw> tmp; }
-    :  ( c=cident                                  { tmp = c; }
-       | v=value                                   { tmp = make_shared<selectable::with_term::raw>(v); }
-       | '(' ct=comparatorType ')' v=value         { tmp = make_shared<selectable::with_term::raw>(make_shared<cql3::type_cast>(ct, v)); }
-       | K_COUNT '(' countArgument ')'             { tmp = selectable::with_function::raw::make_count_rows_function(); }
-       | K_WRITETIME '(' c=cident ')'              { tmp = make_shared<selectable::writetime_or_ttl::raw>(c, true); }
-       | K_TTL       '(' c=cident ')'              { tmp = make_shared<selectable::writetime_or_ttl::raw>(c, false); }
-       | f=functionName args=selectionFunctionArgs { tmp = ::make_shared<selectable::with_function::raw>(std::move(f), std::move(args)); }
-       | K_CAST      '(' arg=unaliasedSelector K_AS t=native_type ')'  { tmp = ::make_shared<selectable::with_cast::raw>(std::move(arg), std::move(t)); }
-       )
+    @after { $s = tmp; }
+    :  g=selectionGroupWithoutField { tmp = g; }
        ( '.' fi=cident { tmp = make_shared<selectable::with_field_selection::raw>(std::move(tmp), std::move(fi)); } )*
-    { $s = tmp; }
+    ;
+
+selectionGroupWithoutField returns [shared_ptr<selectable::raw> s]
+    @init { shared_ptr<selectable::raw> tmp; }
+    @after { $s = tmp; }
+    :  sn=simpleUnaliasedSelector                  { tmp = sn; }
+       | (selectionTypeHint)=> h=selectionTypeHint { tmp = h; }
+    ;
+
+selectionTypeHint returns [shared_ptr<selectable::raw> s]
+    : '(' ct=comparatorType ')' a=selectionGroupWithoutField { $s = make_shared<selectable::with_type_hint::raw>(std::move(a), std::move(ct)); }
+    ;
+
+simpleUnaliasedSelector returns [shared_ptr<selectable::raw> s]
+    :   c=cident                                   { $s = c; }
+        | l=selectionLiteral                       { $s = make_shared<selectable::with_term::raw>(l); }
+        | f=selectionFunction                      { $s = f; }
+    ;
+
+selectionLiteral returns [::shared_ptr<cql3::term::raw> value]
+    :   c=constant                                  { $value = c; }
+    ;
+
+selectionFunction returns [shared_ptr<selectable::raw> s]
+    :  K_COUNT '(' '*' ')'               { $s = selectable::with_function::raw::make_count_rows_function(); }
+       | K_WRITETIME '(' c=cident ')'     { $s = make_shared<selectable::writetime_or_ttl::raw>(c, true); }
+       | K_TTL       '(' c=cident ')'     { $s = make_shared<selectable::writetime_or_ttl::raw>(c, false); }
+       | K_CAST      '(' arg=unaliasedSelector K_AS t=native_type ')'  { $s = ::make_shared<selectable::with_cast::raw>(std::move(arg), std::move(t)); }
+       | f=functionName args=selectionFunctionArgs { $s = ::make_shared<selectable::with_function::raw>(std::move(f), std::move(args)); }
     ;
 
 selectionFunctionArgs returns [std::vector<shared_ptr<selectable::raw>> a]
-    : '(' ')'
-    | '(' s1=unaliasedSelector { a.push_back(std::move(s1)); }
-          ( ',' sn=unaliasedSelector { a.push_back(std::move(sn)); } )*
+    : '(' (s1=unaliasedSelector { a.push_back(std::move(s1)); }
+            ( ',' sn=unaliasedSelector { a.push_back(std::move(sn)); } )* )?
       ')'
     ;
 
@@ -855,7 +901,7 @@ createViewStatement returns [::shared_ptr<create_view_statement> expr]
         std::vector<::shared_ptr<cql3::column_identifier::raw>> composite_keys;
     }
     : K_CREATE K_MATERIALIZED K_VIEW (K_IF K_NOT K_EXISTS { if_not_exists = true; })? cf=columnFamilyName K_AS
-        K_SELECT sclause=selectClause K_FROM basecf=columnFamilyName
+        K_SELECT sclause=selectors K_FROM basecf=columnFamilyName
         (K_WHERE wclause=whereClause)?
         K_PRIMARY K_KEY (
         '(' '(' k1=cident { partition_keys.push_back(k1); } ( ',' kn=cident { partition_keys.push_back(kn); } )* ')' ( ',' c1=cident { composite_keys.push_back(c1); } )* ')'
@@ -1387,10 +1433,14 @@ functionArgs returns [std::vector<shared_ptr<cql3::term::raw>> a]
        ')'
     ;
 
-term returns [::shared_ptr<cql3::term::raw> term1]
-    : v=value                          { $term1 = v; }
-    | f=functionName args=functionArgs { $term1 = ::make_shared<cql3::functions::function_call::raw>(std::move(f), std::move(args)); }
-    | '(' c=comparatorType ')' t=term  { $term1 = make_shared<cql3::type_cast>(c, t); }
+term returns [::shared_ptr<cql3::term::raw> term]
+    : t=simpleTerm    { $term = t; }
+    ;
+
+simpleTerm returns [::shared_ptr<cql3::term::raw> term]
+    : v=value                                { $term = v; }
+    | f=functionName args=functionArgs       { $term = ::make_shared<cql3::functions::function_call::raw>(std::move(f), std::move(args)); }
+    | '(' c=comparatorType ')' t=simpleTerm  { $term = make_shared<cql3::type_cast>(c, t); }
     ;
 
 columnOperation[operations_type& operations]
