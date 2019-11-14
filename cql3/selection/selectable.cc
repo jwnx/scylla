@@ -140,7 +140,15 @@ shared_ptr<selectable::with_function::raw>
 selectable::with_function::raw::make_count_rows_function() {
     return ::make_shared<cql3::selection::selectable::with_function::raw>(
             cql3::functions::function_name::native_function(cql3::functions::aggregate_fcts::COUNT_ROWS_FUNCTION_NAME),
-                    std::vector<shared_ptr<cql3::selection::selectable::raw>>());
+                std::vector<shared_ptr<cql3::selection::selectable::raw>>());
+}
+
+shared_ptr<selectable::with_function::raw>
+selectable::with_function::raw::make_operation_function(sstring op, shared_ptr<selectable::raw> left, shared_ptr<selectable::raw> right) {
+    std::vector<shared_ptr<cql3::selection::selectable::raw>> args{ left, right };
+    return ::make_shared<cql3::selection::selectable::with_function::raw>(
+            cql3::functions::function_name::native_function(op),
+                    std::move(args));
 }
 
 shared_ptr<selector::factory>

@@ -125,6 +125,7 @@ public:
         virtual shared_ptr<selectable> prepare(database& db, schema_ptr s) override;
         virtual bool processes_selection() const override;
         static ::shared_ptr<selectable::with_function::raw> make_count_rows_function();
+        static ::shared_ptr<selectable::with_function::raw> make_operation_function(sstring op, shared_ptr<selectable::raw> left, shared_ptr<selectable::raw> right);
     };
 };
 
