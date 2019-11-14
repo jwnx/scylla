@@ -97,6 +97,8 @@ public:
     class with_cast;
 
     class with_term;
+
+    class with_type_hint;
 };
 
 std::ostream & operator<<(std::ostream &os, const selectable& s);
@@ -168,6 +170,30 @@ public:
     public:
         raw(shared_ptr<selectable::raw> arg, cql3_type type)
                 : _arg(std::move(arg)), _type(std::move(type)) {
+        }
+        virtual shared_ptr<selectable> prepare(database& db, schema_ptr s) override;
+        virtual bool processes_selection() const override;
+    };
+};
+
+class selectable::with_type_hint : public selectable {
+    ::shared_ptr<selectable> _arg;
+    data_type _type;
+public:
+    with_type_hint(::shared_ptr<selectable> arg, data_type type)
+        : _arg(std::move(arg)), _type(std::move(type)) {
+    }
+
+    virtual sstring to_string() const override;
+    virtual data_type get_exact_type_if_known(database& db, const sstring& keyspace) const override;
+
+    virtual shared_ptr<selector::factory> new_selector_factory(database& db, schema_ptr schema, data_type expected_type, std::vector<const column_definition*>& defs, variable_specifications& bound_names) override;
+    class raw : public selectable::raw {
+        ::shared_ptr<selectable::raw> _arg;
+        ::shared_ptr<cql3_type::raw> _raw_type;
+    public:
+        raw(shared_ptr<selectable::raw> arg, shared_ptr<cql3_type::raw> raw_type)
+                : _arg(std::move(arg)), _raw_type(std::move(raw_type)) {
         }
         virtual shared_ptr<selectable> prepare(database& db, schema_ptr s) override;
         virtual bool processes_selection() const override;

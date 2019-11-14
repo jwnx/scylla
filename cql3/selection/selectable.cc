@@ -300,6 +300,57 @@ bool
 selectable::with_term::raw::processes_selection() const {
     return true;
 }
+
+shared_ptr<selector::factory>
+selectable::with_type_hint::new_selector_factory(database& db, schema_ptr s, data_type expected_type, std::vector<const column_definition*>& defs, variable_specifications& bound_names) {
+    auto factory = _arg->new_selector_factory(db, s, expected_type, defs, bound_names);
+
+    class with_type_hint_factory final : public selector::factory {
+        ::shared_ptr<selector::factory> _factory;
+        data_type _type;
+    public:
+        with_type_hint_factory(::shared_ptr<selector::factory> factory, data_type type) :
+            _factory(std::move(factory)), _type(std::move(type)) {}
+
+        virtual sstring column_name() override {
+            return format("({}){}", _type->name(), _factory->column_name());
+        }
+
+        virtual data_type get_return_type() override {
+            return _type;
+        }
+
+        virtual shared_ptr<selector> new_instance(const query_options& options) override {
+            return _factory->new_instance(options);
+        }
+    };
+
+    return ::make_shared<with_type_hint_factory>(factory, _type);
+}
+
+sstring
+selectable::with_type_hint::to_string() const {
+    return format("({}){}", _type->name(), _arg->to_string());
+}
+
+data_type
+selectable::with_type_hint::get_exact_type_if_known(database& db, const sstring& keyspace) const {
+    return _type;
+}
+
+shared_ptr<selectable>
+selectable::with_type_hint::raw::prepare(database& db, schema_ptr s) {
+    auto selectable = _arg->prepare(db ,s);
+    auto type = _raw_type->prepare(db, s->ks_name()).get_type();
+    return ::make_shared<selectable::with_type_hint>(selectable, type);
+}
+
+bool
+selectable::with_type_hint::raw::processes_selection() const {
+    return true;
+}
+
+
 std::ostream & operator<<(std::ostream &os, const selectable& s) {
     return os << s.to_string();
 }
