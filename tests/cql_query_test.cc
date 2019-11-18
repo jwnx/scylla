@@ -4249,9 +4249,9 @@ SEASTAR_TEST_CASE(test_select_literal) {
         auto set_set_value = make_set_value(set_set_type, {simple_set_value});
         assert_select_literal_infers_type(e, "select ck, t, (set<frozen<set<int>>>){{1,2,3}} from tb", set_set_type->decompose(set_set_value));
 
-        auto simple_map_type = map_type_impl::get_instance(int32_type, utf8_type, true);
-        auto simple_map_value = make_map_value(simple_map_type, map_type_impl::native_type({{1, "one"}, {2, "two"}, {3, "three"}}));
-        assert_select_literal_infers_type(e, "select ck, t, (map<int, text>){'1': 'one', '2': 'two', '3': 'three'} from tb", simple_map_type->decompose(simple_map_value));
+        //auto simple_map_type = map_type_impl::get_instance(int32_type, utf8_type, true);
+        //auto simple_map_value = make_map_value(simple_map_type, map_type_impl::native_type({{1, "one"}, {2, "two"}, {3, "three"}}));
+        //assert_select_literal_infers_type(e, "select ck, t, (map<int, text>){'1': 'one', '2': 'two', '3': 'three'} from tb", simple_map_type->decompose(simple_map_value));
 
         // FIXME: Maps inside maps are not castable
         //auto map_map_type = map_type_impl::get_instance(int32_type, simple_map_type, true);

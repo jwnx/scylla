@@ -931,6 +931,7 @@ warnings = [
     '-Werror',
     '-Wno-mismatched-tags',  # clang-only
     '-Wno-maybe-uninitialized',  # false positives on gcc 5
+    '-Wno-sign-compare',
     '-Wno-tautological-compare',
     '-Wno-parentheses-equality',
     '-Wno-c++11-narrowing',
